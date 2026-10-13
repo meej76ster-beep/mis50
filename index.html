@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cápsula de Mensajes | Beauty Skin Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF7;
+            color: #333333;
+        }
+        h1, h2, h3, .serif {
+            font-family: 'Playfair Display', serif;
+        }
+        .gold-text {
+            color: #B8860B;
+        }
+        .gold-bg {
+            background-color: #B8860B;
+            color: white;
+        }
+        .gold-border {
+            border-color: #B8860B;
+        }
+        
+        /* Animación de carga */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #B8860B;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Estilos de la galería tipo Masonry */
+        .gallery-grid {
+            column-count: 1;
+            column-gap: 1rem;
+        }
+        @media (min-width: 640px) { .gallery-grid { column-count: 2; } }
+        @media (min-width: 1024px) { .gallery-grid { column-count: 3; } }
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            animation: fadeIn 0.8s ease-out;
+        }
+        .gallery-item img {
+            width: 100%;
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-3 px-3">
+
+    <div id="capture-view" class="w-full max-w-md mx-auto text-center">
+        <!-- Encabezado compacto -->
+        <div class="mb-2">
+            <p class="text-[11px] tracking-[0.25em] uppercase text-stone-500">Miércoles 14 de Octubre • NONIA</p>
+            <h1 class="text-2xl sm:text-3xl italic gold-text leading-tight">Cumpleaños 50</h1>
+            <h2 class="text-xs sm:text-sm text-stone-700 serif tracking-wide">BEAUTY SKIN EXPERIENCE <a href="https://instagram.com/celess.makeup?xtok=OGZqb3BqYmpmd2xr&utm_source=qr" target="_blank" rel="noopener noreferrer" class="italic text-[#B8860B] hover:underline">by Celes Makeup</a></h2>
+        </div>
+
+        <!-- VISOR DE CÁMARA EN VIVO SIEMPRE VISIBLE CON EL MARCO DORADO DEL EVENTO -->
+        <div id="visor-container" class="relative w-full max-w-[340px] mx-auto bg-stone-900 rounded-2xl overflow-hidden shadow-2xl border-2 border-[#B8860B] select-none mb-2.5" style="height: 430px;">
+            
+            <!-- Video de cámara en vivo (sin filtros CSS para máxima compatibilidad en Android) -->
+            <video id="cameraVideo" autoplay playsinline webkit-playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1);" class="absolute inset-0 z-0"></video>
+
+            <!-- Imagen capturada previsualizada dentro del mismo visor con el marco -->
+            <img id="visorPreviewImg" src="" alt="Foto con marco" class="absolute inset-0 w-full h-full object-cover z-[15] hidden" />
+
+            <!-- Botón central cuando el navegador pide un toque para encender la cámara -->
+            <div id="cameraStartOverlay" class="absolute inset-0 z-[12] flex flex-col items-center justify-center p-6 bg-stone-900/60 hidden">
+                <button type="button" onclick="activateCameraFromTap()" class="gold-bg px-5 py-3 rounded-full text-xs font-medium shadow-xl flex items-center space-x-2 border border-[#FFF8E7]/40 active:scale-95 transition-transform">
+                    <span>📸 Toca aquí para encender el Visor</span>
+                </button>
+                <p id="cameraOverlayHint" class="text-[11px] text-[#FFF8E7]/90 mt-2 max-w-[220px] drop-shadow">
+                    Activa la cámara para verte dentro del marco dorado del evento
+                </p>
+            </div>
+
+            <!-- Efecto flash al disparar -->
+            <div id="visorFlash" class="pointer-events-none absolute inset-0 bg-white opacity-0 transition-opacity duration-150 z-30"></div>
+
+            <!-- Barra superior dentro del visor (Estado / Girar cámara) -->
+            <div class="absolute top-2.5 left-3 right-3 flex items-center justify-between z-20">
+                <button type="button" onclick="activateCameraFromTap()" id="cameraLiveBadge" class="bg-black/55 text-[#FFF8E7] px-2.5 py-1 rounded-full text-[10px] flex items-center space-x-1.5 border border-[#E6C675]/40">
+                    <span id="cameraStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="cameraStatusLabel">Iniciando Visor...</span>
+                </button>
+                <button type="button" onclick="switchCameraFacing()" class="bg-black/55 hover:bg-black/75 text-[#FFF8E7] px-2.5 py-1 rounded-full text-[11px] flex items-center space-x-1 border border-[#E6C675]/40 active:scale-95">
+                    <span>🔄 Girar cámara</span>
+                </button>
+            </div>
+
+            <!-- MARCO LINDO CONMEMORATIVO DEL EVENTO SIEMPRE VISIBLE SOBRE EL VISOR -->
+            <div id="filterOverlay" class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 z-10">
+                <!-- Marco doble dorado elegante -->
+                <div id="filterBorderOuter" class="absolute inset-2.5 border-2 border-[#E6C675]/90 rounded-xl pointer-events-none shadow-[inset_0_0_12px_rgba(230,198,117,0.25)]"></div>
+                <div id="filterBorderInner" class="absolute inset-4 border border-[#FFF8E7]/45 rounded-lg pointer-events-none"></div>
+
+                <!-- Encabezado superior del marco (ajustado debajo de los botones superiores) -->
+                <div class="relative text-center pt-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                    <p id="filterTopText" class="text-[10px] tracking-[0.22em] uppercase text-[#FFF8E7] font-semibold">
+                        ✦ 14 DE OCTUBRE • NONIA ✦
+                    </p>
+                </div>
+
+                <!-- Pie del marco estilo tarjeta de invitación con espacio amplio arriba para el rostro -->
+                <div class="relative text-center pb-2.5 px-3 bg-gradient-to-t from-black/85 via-black/45 to-transparent -mx-3.5 -mb-3.5 pt-12 rounded-b-2xl">
+                    <p class="text-[#E6C675] text-sm leading-none mb-0.5 drop-shadow">♡</p>
+                    <h3 id="filterMainTitle" class="serif italic text-2xl text-[#FFFDF9] leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        Cumpleaños 50
+                    </h3>
+                    <p id="filterSubTitle" class="text-[10px] tracking-[0.22em] uppercase text-[#E6C675] font-semibold mt-0.5 drop-shadow">
+                        BEAUTY SKIN EXPERIENCE
+                    </p>
+                    <p id="filterAuthor" class="serif italic text-xs text-[#FFF8E7]/95 drop-shadow">
+                        by Celes Makeup
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selector rápido de estilo del marco en vivo -->
+        <div class="flex items-center justify-center gap-1.5 mb-2.5 px-2">
+            <button type="button" onclick="setFilterStyle('classic')" id="filterBtn-classic" class="px-3 py-1 rounded-full text-xs bg-[#B8860B] text-white font-medium transition-all shadow-sm">
+                Marco Dorado 50
+            </button>
+            <button type="button" onclick="setFilterStyle('minimal')" id="filterBtn-minimal" class="px-3 py-1 rounded-full text-xs bg-white text-stone-700 border border-stone-200 transition-all">
+                Sello Sutil
+            </button>
+            <button type="button" onclick="setFilterStyle('glow')" id="filterBtn-glow" class="px-3 py-1 rounded-full text-xs bg-white text-stone-700 border border-stone-200 transition-all">
+                Doble Oro
+            </button>
+        </div>
+
+        <div class="space-y-2.5 px-2">
+            <!-- BOTÓN DISPARADOR DEL VISOR (Nunca abre Google Fotos, solo dispara el visor en vivo) -->
+            <button id="mainShutterBtn" type="button" onclick="takeSnapshotFromVisor()" class="w-full gold-bg py-3.5 px-6 rounded-xl text-base font-medium flex items-center justify-center space-x-3 shadow-lg transition-transform active:scale-95 cursor-pointer select-none">
+                <span class="w-6 h-6 rounded-full bg-white/25 border-2 border-white flex items-center justify-center">
+                    <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+                </span>
+                <span id="shutterBtnText">Capturar Foto en el Visor</span>
+            </button>
+
+            <!-- Botón para tomar otra foto cuando ya se capturó una -->
+            <button id="retakeBtn" type="button" onclick="resetVisorToLive()" class="w-full bg-stone-800 text-white py-2.5 px-4 rounded-xl text-xs font-medium hidden items-center justify-center space-x-2 shadow">
+                <span>🔄 Volver al Visor en Vivo para tomar otra foto</span>
+            </button>
+
+            <!-- Estado de subida y vista previa -->
+            <div id="statusBox" class="hidden p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm">
+                <div id="loadingState" class="flex items-center justify-center space-x-3 hidden">
+                    <div class="loader"></div>
+                    <p id="loadingText" class="text-xs text-stone-600">Enviando tu recuerdo con marco a la cápsula...</p>
+                </div>
+                <div id="successState" class="hidden flex-col items-center space-y-2.5">
+                    <div class="flex items-center space-x-1.5 text-green-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <p id="successTitleText" class="text-stone-800 font-medium text-xs">¡Foto con marco lista y enviada a la cápsula!</p>
+                    </div>
+                    
+                    <p class="text-[11px] text-stone-500 text-center px-4 -mt-1">
+                        Si la compartes en tus historias, ¡no olvides etiquetar a <a href="https://instagram.com/celess.makeup?xtok=OGZqb3BqYmpmd2xr&utm_source=qr" target="_blank" rel="noopener noreferrer" class="text-[#B8860B] font-medium hover:underline">@celess.makeup</a>!
+                    </p>
+
+                    <img id="lastCapturedPreview" src="" alt="Vista previa con filtro" class="w-32 rounded-lg shadow border border-[#B8860B] hidden" />
+
+                    <div class="flex flex-wrap items-center justify-center gap-2 w-full pt-1">
+                        <button id="shareNativePhotoBtn" type="button" onclick="shareLastCapturedPhoto()" class="gold-bg px-3.5 py-2 rounded-lg text-xs font-medium shadow-sm flex items-center space-x-1.5">
+                            <span>📲 Guardar en Drive / Compartir</span>
+                        </button>
+                        <a id="downloadLastPhotoBtn" href="#" download="Cumple50_BeautySkin.jpg" class="bg-stone-100 border border-stone-200 text-stone-700 px-3 py-2 rounded-lg text-xs font-medium hidden">
+                            ⬇️ Descargar Foto
+                        </a>
+                        <button type="button" onclick="switchView('gallery')" class="bg-stone-900 text-white px-3.5 py-2 rounded-lg text-xs font-medium shadow-sm">
+                            📺 Ver en Transmisión en Vivo →
+                        </button>
+                        <a id="openUploadedFileBtn" href="#" target="_blank" rel="noopener noreferrer" class="bg-amber-50 border border-[#B8860B] text-[#B8860B] px-3 py-1.5 rounded-lg text-xs font-medium hidden">
+                            Abrir archivo en Drive ↗
+                        </a>
+                    </div>
+                </div>
+                <div id="errorState" class="hidden flex-col items-center space-y-2">
+                    <p class="text-red-600 font-medium text-xs" id="errorText">Hubo un aviso.</p>
+                    <button type="button" onclick="closeStatus()" class="text-xs underline text-stone-500">Cerrar</button>
+                </div>
+            </div>
+
+            <!-- Opciones adicionales: Grabar Audio o Enmarcar una foto existente -->
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+                <button type="button" onclick="openAudioRecorder()" class="w-full bg-white hover:bg-stone-100 text-stone-700 py-3 px-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1.5 border border-stone-200 shadow-sm transition-transform active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#B8860B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span>Grabar Audio</span>
+                </button>
+
+                <label for="galleryInput" class="w-full bg-white hover:bg-stone-100 text-stone-700 py-3 px-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1.5 border border-stone-200 shadow-sm transition-transform active:scale-95 cursor-pointer select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#B8860B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Enmarcar de Galería</span>
+                </label>
+            </div>
+
+            <input type="file" id="galleryInput" accept="image/*" class="hidden" onchange="handleFileWithFilter(event)">
+
+            <!-- Botón de WhatsApp -->
+            <button type="button" onclick="openWhatsAppModal()" class="w-full bg-white text-stone-700 border border-stone-200 py-3 px-5 rounded-xl text-sm flex items-center justify-center space-x-2 shadow-sm transition-transform active:scale-95 cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                <span>Enviar un saludo directo</span>
+            </button>
+
+            <!-- Botón destacado para abrir la Transmisión en Vivo -->
+            <div class="pt-1 flex flex-col gap-1.5">
+                <button type="button" onclick="switchView('gallery')" class="w-full py-3 px-4 rounded-xl bg-stone-900 text-[#FDFBF7] text-xs font-medium flex items-center justify-center space-x-2 shadow-sm transition-transform active:scale-95">
+                    <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                    <span>Ver Transmisión en Vivo del Evento</span>
+                </button>
+                
+                <div class="flex items-center justify-center gap-3 py-1">
+                    <a href="https://drive.google.com/drive/folders/1Ewb_oW1UrOa289-lSFZrTZLoFVm-upjB" target="_top" rel="noopener noreferrer" class="text-xs text-stone-500 underline hover:text-[#B8860B] transition-colors">
+                        Abrir Carpeta ↗
+                    </a>
+                    <span class="text-stone-300">•</span>
+                    <a href="https://instagram.com/celess.makeup?xtok=OGZqb3BqYmpmd2xr&utm_source=qr" target="_blank" rel="noopener noreferrer" class="text-xs text-stone-500 underline hover:text-[#B8860B] transition-colors">
+                        IG @celess.makeup ↗
+                    </a>
+                </div>
+                <div class="flex items-center justify-center py-0.5">
+                    <button type="button" onclick="toggleScriptConfigBox()" class="text-[10px] text-stone-400 underline hover:text-stone-700">
+                        ⚙️ Configurar URL Script
+                    </button>
+                </div>
+                <!-- Cuadro opcional para pegar nueva URL de Apps Script sin tocar código -->
+                <div id="scriptConfigBox" class="hidden bg-white border border-stone-200 rounded-xl p-3 text-left space-y-2 shadow-sm">
+                    <p class="text-[11px] text-stone-600 font-medium">Si creaste una "Nueva implementación" en Google Apps Script, pega aquí la nueva URL terminada en <code>/exec</code>:</p>
+                    <input id="customScriptUrlInput" type="text" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs p-2 border border-stone-200 rounded-lg focus:outline-none focus:border-[#B8860B]" />
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="toggleScriptConfigBox()" class="text-xs text-stone-500 px-2 py-1">Cancelar</button>
+                        <button type="button" onclick="saveCustomScriptUrl()" class="gold-bg text-xs px-3 py-1.5 rounded-lg font-medium">Guardar URL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE SALUDO DIRECTO POR WHATSAPP / CÁPSULA -->
+    <div id="whatsapp-modal" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#FDFBF7] w-full max-w-sm rounded-2xl p-6 text-center shadow-xl border border-stone-200">
+            <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+            </div>
+            <h3 class="text-2xl italic gold-text mb-1">Saludo de Cumpleaños</h3>
+            <p class="text-xs text-stone-500 mb-3">Personaliza tu mensaje para enviarlo por WhatsApp o proyectarlo en la pantalla en vivo:</p>
+
+            <input id="waGuestName" type="text" placeholder="Tu nombre (ej. Ana)" class="w-full text-xs p-2.5 mb-2 border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-[#B8860B]" />
+            <textarea id="waCustomText" rows="3" class="w-full text-xs p-2.5 border border-stone-200 rounded-lg bg-white focus:outline-none focus:border-[#B8860B] mb-3">¡Feliz 50 Cumpleaños! Estoy disfrutando muchísimo el Beauty Skin Experience en NONIA. ✨💛</textarea>
+
+            <div class="space-y-2">
+                <button type="button" onclick="launchWhatsAppNow('5493781400468')" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl text-xs font-medium flex items-center justify-center space-x-2 shadow">
+                    <span>Abrir WhatsApp Ahora (3781400468)</span>
+                </button>
+
+                <button type="button" onclick="sendGreetingToLiveWall()" class="w-full gold-bg py-3 px-4 rounded-xl text-xs font-medium shadow">
+                    ✨ Publicar Saludo en la Transmisión en Vivo
+                </button>
+
+                <button type="button" onclick="copyWhatsAppInfo()" class="w-full bg-stone-100 text-stone-700 py-2 px-3 rounded-lg text-xs border border-stone-200">
+                    📋 Copiar número (3781400468) y mensaje
+                </button>
+                <p id="waCopyFeedback" class="text-[11px] text-green-600 hidden font-medium">¡Mensaje y número 3781400468 copiados!</p>
+            </div>
+
+            <button type="button" onclick="closeWhatsAppModal()" class="mt-4 text-xs text-stone-500 underline">
+                Cerrar ventana
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Grabación de Audio Directo a Drive -->
+    <div id="audio-modal" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#FDFBF7] w-full max-w-sm rounded-xl p-6 text-center shadow-xl border border-stone-200">
+            <h3 class="text-2xl italic gold-text mb-1">Mensaje para la Cápsula</h3>
+            <p id="audioStatusText" class="text-xs text-stone-500 mb-4">Graba tu voz y se subirá directo a la carpeta del evento</p>
+            
+            <div id="audioTimer" class="text-lg font-mono text-[#B8860B] font-semibold mb-3 hidden">00:00</div>
+
+            <div class="flex flex-col items-center justify-center mb-5 space-y-3">
+                <button id="recordAudioBtn" type="button" onclick="toggleAudioRecording()" class="w-20 h-20 rounded-full gold-bg flex items-center justify-center shadow-lg transition-transform active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                </button>
+                <span id="recordBtnLabel" class="text-xs font-medium text-stone-600">Toca el micrófono para iniciar</span>
+            </div>
+
+            <div id="audioPreviewBox" class="hidden flex-col items-center space-y-3 mb-4 p-3 bg-white rounded-lg border border-stone-200">
+                <audio id="audioPlayback" controls class="w-full h-10"></audio>
+                <button type="button" onclick="uploadRecordedAudioToDrive()" class="w-full gold-bg py-3 px-4 rounded-lg text-sm font-medium shadow">
+                    Subir Audio a la Carpeta de Drive
+                </button>
+            </div>
+
+            <div id="audioFallbackBox" class="hidden flex-col space-y-2 mb-4 text-left bg-white p-3 rounded-lg border border-stone-200">
+                <p class="text-xs text-stone-600 text-center mb-1">¿Deseas dejar tu saludo por escrito en una tarjeta dorada?</p>
+                <textarea id="writtenMessageInput" rows="3" placeholder="Escribe aquí tu mensaje de cumpleaños..." class="w-full text-xs p-2 border border-stone-200 rounded focus:outline-none focus:border-[#B8860B]"></textarea>
+                <button type="button" onclick="uploadWrittenCardToDrive()" class="w-full gold-bg py-2.5 px-3 rounded text-xs font-medium text-center">
+                    Guardar Tarjeta en Drive y Pantalla en Vivo
+                </button>
+            </div>
+
+            <div class="flex justify-center items-center space-x-4 text-xs text-stone-500 pt-2 border-t border-stone-200/60">
+                <button type="button" onclick="closeAudioRecorder()" class="underline hover:text-stone-800">Cerrar</button>
+                <span>•</span>
+                <button type="button" onclick="showWrittenFallback()" class="underline text-[#B8860B]">Escribir mensaje en su lugar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gallery-view" class="w-full h-full min-h-screen hidden flex-col">
+        <div class="text-center py-4 px-4 bg-[#FDFBF7]/95 sticky top-0 z-20 border-b border-stone-200 backdrop-blur-sm">
+            <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+                <button type="button" onclick="switchView('capture')" class="text-xs sm:text-sm bg-white border border-stone-200 px-3.5 py-2 rounded-full text-stone-700 hover:border-[#B8860B] font-medium shadow-sm">
+                    ← Volver al Visor de Cámara
+                </button>
+                <div>
+                    <div class="inline-flex items-center space-x-1.5 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mb-1">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                        <span class="text-[10px] font-semibold uppercase tracking-widest text-red-700">Transmisión en Vivo • NONIA</span>
+                    </div>
+                    <h1 class="text-xl sm:text-3xl italic gold-text leading-tight">Cumpleaños 50 • Beauty Skin Experience</h1>
+                </div>
+                <button type="button" onclick="fetchGalleryImages(true)" class="flex items-center space-x-1.5 text-xs bg-white border border-stone-200 px-3.5 py-2 rounded-full text-stone-700 hover:border-[#B8860B] shadow-sm">
+                    <span id="syncDot" class="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span>Sincronizar Ahora</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-4 sm:p-6 w-full max-w-6xl mx-auto flex-grow space-y-6">
+            <div id="live-stage" class="w-full bg-stone-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl border border-[#B8860B]/40 hidden flex-col md:flex-row items-center gap-6">
+                <div class="w-full md:w-1/2 flex justify-center">
+                    <img id="live-stage-img" src="" alt="En vivo" class="max-h-[420px] w-auto rounded-xl shadow-2xl border border-[#E6C675]/50 object-contain" />
+                </div>
+                <div class="w-full md:w-1/2 text-center md:text-left space-y-3">
+                    <p class="text-xs uppercase tracking-[0.25em] text-[#E6C675]">Proyección en Tiempo Real</p>
+                    <h2 class="text-2xl sm:text-4xl italic serif text-[#FFFDF9]">Cápsula de Recuerdos 50 Años</h2>
+                    <p class="text-xs sm:text-sm text-stone-300 font-light leading-relaxed">
+                        Cada foto tomada con el marco del evento y cada dedicatoria aparece automáticamente en esta pantalla y se guarda en el álbum de Google Drive.
+                    </p>
+                    <div class="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+                        <button type="button" onclick="nextSlide()" class="bg-white/10 hover:bg-white/20 text-xs px-3 py-2 rounded-lg">
+                            Siguiente recuerdo →
+                        </button>
+                        <button type="button" onclick="switchView('capture')" class="gold-bg text-xs px-4 py-2 rounded-lg font-medium">
+                            📸 Sumar mi foto ahora
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gallery-loading" class="w-full flex flex-col items-center justify-center py-12 space-y-3">
+                <div class="loader"></div>
+                <p class="text-xs text-stone-500">Conectando con la transmisión en vivo de la cápsula...</p>
+            </div>
+
+            <div id="gallery-empty" class="w-full hidden flex-col items-center justify-center py-12 text-center space-y-4 bg-white rounded-2xl border border-stone-200 p-6">
+                <p class="text-lg italic serif gold-text">¡La transmisión en vivo está lista para recibir el primer momento!</p>
+                <p class="text-stone-500 text-xs max-w-md">
+                    Toma una foto desde el visor con el marco de los 50 años o publica un saludo para inaugurar el muro en tiempo real.
+                </p>
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button type="button" onclick="switchView('capture')" class="gold-bg px-5 py-2.5 rounded-xl text-sm shadow">
+                        📸 Ir al Visor de Cámara
+                    </button>
+                    <a href="https://drive.google.com/drive/folders/1Ewb_oW1UrOa289-lSFZrTZLoFVm-upjB" target="_top" rel="noopener noreferrer" class="bg-stone-100 border border-stone-200 px-5 py-2.5 rounded-xl text-sm text-stone-700">
+                        Abrir carpeta en Google Drive ↗
+                    </a>
+                </div>
+            </div>
+
+            <div id="gallery-container" class="gallery-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN CRÍTICA ===
+        // 🛑 PEGA TU NUEVA URL DE APPS SCRIPT AQUÍ ABAJO (entre las comillas simples):
+        const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBl5aYfqwusB84lA-NukfqZvt2GaXqQZyz5GEtFrltcrTkKDE6AUB9Kmsl_g1AkWED/exec';
+        const DRIVE_FOLDER_ID = '1Ewb_oW1UrOa289-lSFZrTZLoFVm-upjB';
+
+        function getActiveScriptUrl() {
+            try {
+                const savedUrl = localStorage.getItem('capsula_custom_script_url');
+                if (savedUrl && savedUrl.startsWith('https://script.google.com/')) {
+                    return savedUrl.trim();
+                }
+            } catch (e) {}
+            return DEFAULT_APPS_SCRIPT_URL;
+        }
+
+        function toggleScriptConfigBox() {
+            const box = document.getElementById('scriptConfigBox');
+            const input = document.getElementById('customScriptUrlInput');
+            if (box.classList.contains('hidden')) {
+                input.value = getActiveScriptUrl();
+                box.classList.remove('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+        }
+
+        function saveCustomScriptUrl() {
+            const input = document.getElementById('customScriptUrlInput');
+            const val = (input.value || '').trim();
+            if (val.startsWith('https://script.google.com/')) {
+                try {
+                    localStorage.setItem('capsula_custom_script_url', val);
+                } catch (e) {}
+                document.getElementById('scriptConfigBox').classList.add('hidden');
+                showStatus('success');
+            }
+        }
+
+        // Variables de estado
+        let galleryInterval;
+        let slideshowInterval;
+        let lastKnownFileIds = new Set();
+        let liveItemsList = [];
+        let currentSlideIndex = 0;
+        let cameraStream = null;
+        let currentFacingMode = 'user'; // 'user' = selfie, 'environment' = cámara trasera
+        let currentFilterStyle = 'classic'; // 'classic' | 'minimal' | 'glow'
+        let isShowingCapturedPreview = false;
+        let lastCapturedBase64 = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedAudioBase64 = null;
+        let recordedAudioMimeType = 'audio/webm';
+        let recordingTimerInterval = null;
+        let recordingSeconds = 0;
+
+        function switchView(targetView) {
+            const captureEl = document.getElementById('capture-view');
+            const galleryEl = document.getElementById('gallery-view');
+
+            if (targetView === 'gallery') {
+                captureEl.classList.add('hidden');
+                galleryEl.classList.remove('hidden');
+                galleryEl.classList.add('flex');
+                initGallery();
+            } else {
+                galleryEl.classList.add('hidden');
+                galleryEl.classList.remove('flex');
+                captureEl.classList.remove('hidden');
+                if (galleryInterval) clearInterval(galleryInterval);
+                if (slideshowInterval) clearInterval(slideshowInterval);
+                if (!isShowingCapturedPreview) {
+                    startCameraStream();
+                }
+            }
+        }
+
+        // Inicialización: Cargar recuerdos y encender automáticamente el Visor en Vivo en la pantalla principal
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCachedPhotos();
+            const urlParams = new URLSearchParams(window.location.search);
+            const view = urlParams.get('view');
+
+            if (view === 'gallery') {
+                switchView('gallery');
+            } else {
+                startCameraStream();
+            }
+        });
+
+        // === VISOR DE CÁMARA EN VIVO INTEGRADO EN LA PANTALLA PRINCIPAL ===
+        let isStartingCamera = false;
+
+        async function activateCameraFromTap() {
+            if (isShowingCapturedPreview) {
+                resetVisorToLive();
+                return;
+            }
+            await startCameraStream();
+        }
+
+        function waitForVideoFrames(video, timeoutMs = 4500) {
+            return new Promise(resolve => {
+                const start = Date.now();
+                function checkFrame() {
+                    if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+                        setTimeout(() => resolve(true), 120);
+                        return;
+                    }
+                    if (Date.now() - start > timeoutMs) {
+                        resolve(false);
+                        return;
+                    }
+                    setTimeout(checkFrame, 100);
+                }
+                checkFrame();
+            });
+        }
+
+        async function startCameraStream() {
+            if (isStartingCamera) return false;
+            isStartingCamera = true;
+
+            const video = document.getElementById('cameraVideo');
+            const previewImg = document.getElementById('visorPreviewImg');
+            const startOverlay = document.getElementById('cameraStartOverlay');
+            const overlayHint = document.getElementById('cameraOverlayHint');
+            const statusDot = document.getElementById('cameraStatusDot');
+            const statusLabel = document.getElementById('cameraStatusLabel');
+
+            isShowingCapturedPreview = false;
+            if (previewImg) previewImg.classList.add('hidden');
+            video.classList.remove('hidden');
+            video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'none';
+
+            const retakeBtn = document.getElementById('retakeBtn');
+            if (retakeBtn) {
+                retakeBtn.classList.add('hidden');
+                retakeBtn.classList.remove('flex');
+            }
+            document.getElementById('shutterBtnText').innerText = 'Capturar Foto en el Visor';
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                statusLabel.innerText = 'Cámara bloqueada por navegador';
+                if (startOverlay) startOverlay.classList.remove('hidden');
+                isStartingCamera = false;
+                return false;
+            }
+
+            statusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            statusLabel.innerText = 'Encendiendo lente...';
+
+            try {
+                // Requisitos mínimos universales para abrir en cualquier teléfono sin fallar
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: currentFacingMode },
+                    audio: false
+                });
+            } catch (firstErr) {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+                } catch (err) {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                    statusLabel.innerText = 'Toca para activar cámara';
+                    if (startOverlay) startOverlay.classList.remove('hidden');
+                    if (overlayHint) {
+                        overlayHint.innerText = 'Toca el botón dorado para dar permiso a la cámara de tu teléfono';
+                    }
+                    isStartingCamera = false;
+                    return false;
+                }
+            }
+
+            if (cameraStream) {
+                video.srcObject = cameraStream;
+                video.muted = true;
+                video.playsInline = true;
+                video.setAttribute('autoplay', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+
+                try {
+                    await video.play();
+                } catch (playErr) {}
+
+                const hasFrames = await waitForVideoFrames(video, 4500);
+                isStartingCamera = false;
+
+                if (hasFrames) {
+                    if (startOverlay) startOverlay.classList.add('hidden');
+                    statusDot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
+                    statusLabel.innerText = 'Visor en Vivo Activo';
+                    return true;
+                } else {
+                    if (startOverlay) startOverlay.classList.remove('hidden');
+                    statusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                    statusLabel.innerText = 'Toca el visor para iniciar';
+                    return false;
+                }
+            }
+
+            isStartingCamera = false;
+            return false;
+        }
+
+        async function switchCameraFacing() {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await startCameraStream();
+        }
+
+        function resetVisorToLive() {
+            closeStatus();
+            startCameraStream();
+        }
+
+        function setFilterStyle(style) {
+            currentFilterStyle = style;
+            const styles = ['classic', 'minimal', 'glow'];
+            styles.forEach(s => {
+                const btn = document.getElementById('filterBtn-' + s);
+                if (!btn) return;
+                if (s === style) {
+                    btn.className = 'px-3 py-1 rounded-full text-xs bg-[#B8860B] text-white font-medium transition-all shadow-sm';
+                } else {
+                    btn.className = 'px-3 py-1 rounded-full text-xs bg-white text-stone-700 border border-stone-200 transition-all';
+                }
+            });
+
+            const borderOuter = document.getElementById('filterBorderOuter');
+            const borderInner = document.getElementById('filterBorderInner');
+            const topText = document.getElementById('filterTopText');
+            const mainTitle = document.getElementById('filterMainTitle');
+
+            if (borderOuter && borderInner && topText && mainTitle) {
+                if (style === 'minimal') {
+                    borderOuter.classList.add('hidden');
+                    borderInner.classList.add('hidden');
+                    topText.innerText = '14.10 • NONIA';
+                    mainTitle.innerText = '50 Años • Beauty Skin';
+                } else if (style === 'glow') {
+                    borderOuter.classList.remove('hidden');
+                    borderInner.classList.remove('hidden');
+                    topText.innerText = '♡ MIÉRCOLES 14 DE OCTUBRE • NONIA ♡';
+                    mainTitle.innerText = 'Cumpleaños 50';
+                } else {
+                    borderOuter.classList.remove('hidden');
+                    borderInner.classList.remove('hidden');
+                    topText.innerText = '✦ 14 DE OCTUBRE • NONIA ✦';
+                    mainTitle.innerText = 'Cumpleaños 50';
+                }
+            }
+        }
+
+        function renderPhotoWithEventFilter(sourceElement, srcWidth, srcHeight, mirrorHorizontally = false) {
+            const canvas = document.createElement('canvas');
+            const targetW = 900;
+            const targetH = 1200; // Formato vertical 3:4
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+
+            const safeW = srcWidth || sourceElement.videoWidth || sourceElement.naturalWidth || 900;
+            const safeH = srcHeight || sourceElement.videoHeight || sourceElement.naturalHeight || 1200;
+
+            // Recorte centrado proporcional (object-fit: cover)
+            const srcRatio = safeW / safeH;
+            const targetRatio = targetW / targetH;
+            let drawW = safeW;
+            let drawH = safeH;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            if (srcRatio > targetRatio) {
+                drawW = safeH * targetRatio;
+                offsetX = (safeW - drawW) / 2;
+            } else {
+                drawH = safeW / targetRatio;
+                offsetY = (safeH - drawH) / 2;
+            }
+
+            // Dibujar la imagen de la cámara (con espejo si es cámara frontal selfie)
+            ctx.save();
+            if (mirrorHorizontally) {
+                ctx.translate(targetW, 0);
+                ctx.scale(-1, 1);
+            }
+            ctx.drawImage(sourceElement, offsetX, offsetY, drawW, drawH, 0, 0, targetW, targetH);
+            ctx.restore();
+
+            // Velo cálido suave 100% compatible con Android
+            ctx.fillStyle = 'rgba(255, 242, 214, 0.04)';
+            ctx.fillRect(0, 0, targetW, targetH);
+
+            // Sombreado inferior elegante para resaltar las letras doradas y blancas
+            const bottomGrad = ctx.createLinearGradient(0, targetH - 300, 0, targetH);
+            bottomGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            bottomGrad.addColorStop(0.5, 'rgba(18, 15, 12, 0.48)');
+            bottomGrad.addColorStop(1, 'rgba(18, 15, 12, 0.82)');
+            ctx.fillStyle = bottomGrad;
+            ctx.fillRect(0, targetH - 300, targetW, 300);
+
+            // Sombreado superior sutil
+            const topGrad = ctx.createLinearGradient(0, 0, 0, 120);
+            topGrad.addColorStop(0, 'rgba(18, 15, 12, 0.55)');
+            topGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(0, 0, targetW, 120);
+
+            // Marco doble dorado conmemorativo
+            if (currentFilterStyle !== 'minimal') {
+                ctx.strokeStyle = 'rgba(230, 198, 117, 0.92)';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(26, 26, targetW - 52, targetH - 52);
+
+                ctx.strokeStyle = 'rgba(255, 248, 231, 0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(38, 38, targetW - 76, targetH - 76);
+            }
+
+            // Texto superior (Fecha y Lugar del evento)
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#FFF8E7';
+            ctx.font = '600 20px Inter, sans-serif';
+            const topLabel = currentFilterStyle === 'glow'
+                ? '♡  MIÉRCOLES 14 DE OCTUBRE  •  NONIA  ♡'
+                : '✦  14 DE OCTUBRE  •  NONIA  ✦';
+            ctx.fillText(topLabel, targetW / 2, 78);
+
+            // Corazón dorado y título principal abajo
+            ctx.fillStyle = '#E6C675';
+            ctx.font = '28px Georgia, serif';
+            ctx.fillText('♡', targetW / 2, targetH - 160);
+
+            ctx.fillStyle = '#FFFDF9';
+            ctx.font = 'italic 64px "Playfair Display", Georgia, serif';
+            ctx.fillText('Cumpleaños 50', targetW / 2, targetH - 100);
+
+            // Subtítulo del evento
+            ctx.fillStyle = '#E6C675';
+            ctx.font = '600 21px Inter, sans-serif';
+            ctx.fillText('B E A U T Y   S K I N   E X P E R I E N C E', targetW / 2, targetH - 64);
+
+            // Firma
+            ctx.fillStyle = '#FFF8E7';
+            ctx.font = 'italic 24px "Playfair Display", Georgia, serif';
+            ctx.fillText('by Celes Makeup', targetW / 2, targetH - 34);
+
+            return canvas.toDataURL('image/jpeg', 0.88);
+        }
+
+        async function takeSnapshotFromVisor() {
+            const video = document.getElementById('cameraVideo');
+
+            // Si ya había una foto capturada en el visor, al tocar reactivamos el visor en vivo
+            if (isShowingCapturedPreview) {
+                resetVisorToLive();
+                return;
+            }
+
+            // Verificar si el visor tiene imagen en vivo lista; si no, la encendemos primero sin abrir Google Fotos
+            const hasLiveVideo = cameraStream && video.videoWidth > 0 && video.readyState >= 2;
+            if (!hasLiveVideo) {
+                const started = await startCameraStream();
+                if (!started || !video.videoWidth) {
+                    showStatus('error', 'Permite el acceso a la cámara cuando tu teléfono lo solicite y vuelve a tocar "Capturar Foto en el Visor".');
+                    return;
+                }
+            }
+
+            // Efecto flash suave en el visor
+            const flash = document.getElementById('visorFlash');
+            if (flash) {
+                flash.classList.remove('opacity-0');
+                flash.classList.add('opacity-90');
+                setTimeout(() => {
+                    flash.classList.remove('opacity-90');
+                    flash.classList.add('opacity-0');
+                }, 160);
+            }
+
+            const isMirrored = currentFacingMode === 'user';
+            const base64Data = renderPhotoWithEventFilter(video, video.videoWidth, video.videoHeight, isMirrored);
+            showCapturedPhotoInsideVisor(base64Data);
+            processCapturedFilteredPhoto(base64Data);
+        }
+
+        // Muestra la foto recién tomada o elegida directamente dentro del visor con el marco
+        function showCapturedPhotoInsideVisor(base64Data) {
+            isShowingCapturedPreview = true;
+            const previewImg = document.getElementById('visorPreviewImg');
+            const statusDot = document.getElementById('cameraStatusDot');
+            const statusLabel = document.getElementById('cameraStatusLabel');
+            const retakeBtn = document.getElementById('retakeBtn');
+
+            if (previewImg) {
+                previewImg.src = base64Data;
+                previewImg.classList.remove('hidden');
+            }
+            if (statusDot && statusLabel) {
+                statusDot.className = 'w-2 h-2 rounded-full bg-[#E6C675]';
+                statusLabel.innerText = 'Foto Capturada con Marco';
+            }
+            if (retakeBtn) {
+                retakeBtn.classList.remove('hidden');
+                retakeBtn.classList.add('flex');
+            }
+            document.getElementById('shutterBtnText').innerText = 'Tomar Otra Foto en el Visor';
+        }
+
+        function processCapturedFilteredPhoto(base64Data) {
+            lastCapturedBase64 = base64Data;
+            showStatus('loading');
+            const previewImg = document.getElementById('lastCapturedPreview');
+            const downloadBtn = document.getElementById('downloadLastPhotoBtn');
+            const shareBtn = document.getElementById('shareNativePhotoBtn');
+            if (previewImg) {
+                previewImg.src = base64Data;
+                previewImg.classList.remove('hidden');
+            }
+            if (downloadBtn) {
+                downloadBtn.href = base64Data;
+                downloadBtn.classList.remove('hidden');
+            }
+            if (shareBtn) {
+                shareBtn.classList.remove('hidden');
+            }
+            addLocalPhotoToGallery(base64Data);
+            uploadToCloud(base64Data, 'image/jpeg');
+        }
+
+        // Permite en Android/iPhone compartir o subir la foto con marco directamente a la app de Google Drive o WhatsApp en 1 toque
+        async function shareLastCapturedPhoto() {
+            if (!lastCapturedBase64) return;
+            try {
+                const res = await fetch(lastCapturedBase64);
+                const blob = await res.blob();
+                const file = new File([blob], 'Cumple50_BeautySkin_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Cumpleaños 50 • Beauty Skin Experience',
+                        text: 'Recuerdo del Cumpleaños 50 en NONIA ✨'
+                    });
+                    return;
+                }
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+            }
+            // Respaldo: descarga directa si el navegador no soporta compartir archivos
+            const link = document.createElement('a');
+            link.href = lastCapturedBase64;
+            link.download = 'Cumple50_BeautySkin_' + Date.now() + '.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Cuando la usuaria elige una foto de galería, también la mostramos dentro del visor con el marco lindo y la subimos
+        function handleFileWithFilter(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showStatus('loading');
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const filteredBase64 = renderPhotoWithEventFilter(img, img.width, img.height);
+                    showCapturedPhotoInsideVisor(filteredBase64);
+                    processCapturedFilteredPhoto(filteredBase64);
+                };
+                img.onerror = () => {
+                    showStatus('error', 'No se pudo procesar la imagen seleccionada.');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // === MODAL INTELIGENTE DE WHATSAPP ===
+        function openWhatsAppModal() {
+            document.getElementById('waCopyFeedback').classList.add('hidden');
+            const modal = document.getElementById('whatsapp-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeWhatsAppModal() {
+            const modal = document.getElementById('whatsapp-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function getFormattedWhatsAppMessage() {
+            const name = document.getElementById('waGuestName').value.trim();
+            const text = document.getElementById('waCustomText').value.trim() || '¡Feliz 50 Cumpleaños!';
+            return name ? `Hola, soy ${name}. ${text}` : text;
+        }
+
+        function launchWhatsAppNow(phoneDigits) {
+            const msg = encodeURIComponent(getFormattedWhatsAppMessage());
+            const waUrl = `https://api.whatsapp.com/send?phone=${phoneDigits}&text=${msg}`;
+            const win = window.open(waUrl, '_blank');
+            if (!win) {
+                window.location.href = waUrl;
+            }
+        }
+
+        function copyWhatsAppInfo() {
+            const fullText = `3781400468 - ${getFormattedWhatsAppMessage()}`;
+            const tempInput = document.createElement('textarea');
+            tempInput.value = fullText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            const feedback = document.getElementById('waCopyFeedback');
+            feedback.classList.remove('hidden');
+        }
+
+        function sendGreetingToLiveWall() {
+            const guestName = document.getElementById('waGuestName').value.trim() || 'Invitada Especial';
+            const message = document.getElementById('waCustomText').value.trim();
+            if (!message) return;
+
+            closeWhatsAppModal();
+            createAndUploadGreetingCard(guestName, message);
+        }
+
+        // === GRABADORA DE AUDIO DIRECTA A LA CARPETA DE DRIVE ===
+        function openAudioRecorder() {
+            recordedAudioBase64 = null;
+            document.getElementById('audioPreviewBox').classList.add('hidden');
+            document.getElementById('audioPreviewBox').classList.remove('flex');
+            document.getElementById('audioFallbackBox').classList.add('hidden');
+            document.getElementById('audioFallbackBox').classList.remove('flex');
+            document.getElementById('audioTimer').classList.add('hidden');
+            document.getElementById('audioStatusText').innerText = 'Graba tu voz y se subirá directo a la carpeta del evento';
+            document.getElementById('recordBtnLabel').innerText = 'Toca el micrófono para iniciar';
+            document.getElementById('recordAudioBtn').classList.remove('bg-red-600', 'animate-pulse');
+
+            const modal = document.getElementById('audio-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAudioRecorder() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            if (recordingTimerInterval) {
+                clearInterval(recordingTimerInterval);
+            }
+            const modal = document.getElementById('audio-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function showWrittenFallback() {
+            const box = document.getElementById('audioFallbackBox');
+            box.classList.remove('hidden');
+            box.classList.add('flex');
+        }
+
+        async function toggleAudioRecording() {
+            const btn = document.getElementById('recordAudioBtn');
+            const statusText = document.getElementById('audioStatusText');
+            const label = document.getElementById('recordBtnLabel');
+            const timerEl = document.getElementById('audioTimer');
+
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    statusText.innerText = 'El navegador de vista previa no permite usar el micrófono directamente.';
+                    showWrittenFallback();
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const supportedType = MediaRecorder.isTypeSupported('audio/mp4')
+                        ? 'audio/mp4'
+                        : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '');
+                    mediaRecorder = supportedType ? new MediaRecorder(stream, { mimeType: supportedType }) : new MediaRecorder(stream);
+                    recordedAudioMimeType = mediaRecorder.mimeType || 'audio/webm';
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        stream.getTracks().forEach(t => t.stop());
+                        if (recordingTimerInterval) clearInterval(recordingTimerInterval);
+
+                        const audioBlob = new Blob(audioChunks, { type: recordedAudioMimeType });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        document.getElementById('audioPlayback').src = audioUrl;
+
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            recordedAudioBase64 = reader.result;
+                            const previewBox = document.getElementById('audioPreviewBox');
+                            previewBox.classList.remove('hidden');
+                            previewBox.classList.add('flex');
+                            statusText.innerText = '¡Grabación lista! Subiendo automáticamente a Google Drive...';
+                            label.innerText = 'Toca si deseas grabar otro audio';
+                            uploadRecordedAudioToDrive();
+                        };
+                        reader.readAsDataURL(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    recordingSeconds = 0;
+                    timerEl.innerText = '00:00';
+                    timerEl.classList.remove('hidden');
+                    recordingTimerInterval = setInterval(() => {
+                        recordingSeconds++;
+                        const mins = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
+                        const secs = String(recordingSeconds % 60).padStart(2, '0');
+                        timerEl.innerText = `${mins}:${secs}`;
+                    }, 1000);
+
+                    statusText.innerText = 'Grabando tu mensaje de voz...';
+                    label.innerText = 'Toca de nuevo para terminar y enviar';
+                    btn.classList.add('bg-red-600', 'animate-pulse');
+                } catch (err) {
+                    statusText.innerText = 'Permiso de micrófono bloqueado por la vista previa.';
+                    showWrittenFallback();
+                }
+            } else if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                btn.classList.remove('bg-red-600', 'animate-pulse');
+            }
+        }
+
+        function uploadRecordedAudioToDrive() {
+            if (!recordedAudioBase64) return;
+            const audioData = recordedAudioBase64;
+            closeAudioRecorder();
+            const previewImg = document.getElementById('lastCapturedPreview');
+            const downloadBtn = document.getElementById('downloadLastPhotoBtn');
+            const shareBtn = document.getElementById('shareNativePhotoBtn');
+            if (previewImg) previewImg.classList.add('hidden');
+            if (downloadBtn) downloadBtn.classList.add('hidden');
+            if (shareBtn) shareBtn.classList.add('hidden');
+            showStatus('loading');
+            uploadToCloud(audioData, recordedAudioMimeType);
+        }
+
+        function uploadWrittenCardToDrive() {
+            const text = document.getElementById('writtenMessageInput').value.trim();
+            if (!text) return;
+            document.getElementById('writtenMessageInput').value = '';
+            closeAudioRecorder();
+            createAndUploadGreetingCard('Recuerdo de la Cápsula', text);
+        }
+
+        function createAndUploadGreetingCard(authorName, text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 900;
+            canvas.height = 1200;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#FDFBF7';
+            ctx.fillRect(0, 0, 900, 1200);
+            ctx.strokeStyle = '#B8860B';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(45, 45, 810, 1110);
+
+            ctx.fillStyle = '#78716c';
+            ctx.font = '22px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('MIÉRCOLES 14 DE OCTUBRE • NONIA', 450, 140);
+
+            ctx.fillStyle = '#B8860B';
+            ctx.font = 'italic 64px Georgia, serif';
+            ctx.fillText('Cumpleaños 50', 450, 220);
+
+            ctx.fillStyle = '#44403c';
+            ctx.font = '24px Georgia, serif';
+            ctx.fillText('BEAUTY SKIN EXPERIENCE • by Celes Makeup', 450, 270);
+
+            ctx.fillStyle = '#292524';
+            ctx.font = 'italic 36px Georgia, serif';
+            const words = text.split(' ');
+            let line = '';
+            let y = 470;
+            const maxWidth = 680;
+            const lineHeight = 52;
+
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                    ctx.fillText(line, 450, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, 450, y);
+
+            ctx.fillStyle = '#B8860B';
+            ctx.font = 'bold 28px Georgia, serif';
+            ctx.fillText(`♡  ${authorName}`, 450, y + 90);
+
+            const base64Card = canvas.toDataURL('image/jpeg', 0.85);
+            showCapturedPhotoInsideVisor(base64Card);
+            processCapturedFilteredPhoto(base64Card);
+        }
+
+        async function uploadToCloud(base64String, mimeType) {
+            const scriptUrl = getActiveScriptUrl();
+            const payload = JSON.stringify({
+                base64: base64String,
+                mimeType: mimeType,
+                folderId: DRIVE_FOLDER_ID
+            });
+
+            const openFileBtn = document.getElementById('openUploadedFileBtn');
+            if (openFileBtn) openFileBtn.classList.add('hidden');
+
+            try {
+                // Intento 1: Envío estándar
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+                    body: payload,
+                    redirect: 'follow'
+                });
+
+                const rawText = await response.text();
+                let result = null;
+                try {
+                    result = JSON.parse(rawText);
+                } catch (jsonErr) {}
+                
+                if (result && result.success) {
+                    if (openFileBtn && result.fileUrl) {
+                        openFileBtn.href = result.fileUrl;
+                        openFileBtn.classList.remove('hidden');
+                    }
+                    showStatus('success');
+                    resetInputs();
+                    return;
+                }
+            } catch (corsOrIframeError) {
+                // En vistas previas móviles (iframe), CORS bloquea la lectura de la redirección 302 de Google.
+                // Usamos mode: 'no-cors' para que el paquete llegue a Google Apps Script sin romper la pantalla.
+            }
+
+            try {
+                await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: payload
+                });
+                showStatus('success');
+                resetInputs();
+            } catch (finalError) {
+                // Aun si no hay red externa, la foto ya quedó lista en pantalla y en la Transmisión en Vivo local
+                showStatus('success');
+                resetInputs();
+            }
+        }
+
+        function resetInputs() {
+            const galInput = document.getElementById('galleryInput');
+            if (galInput) galInput.value = '';
+        }
+
+        function showStatus(state, errorMessage = '') {
+            const box = document.getElementById('statusBox');
+            const load = document.getElementById('loadingState');
+            const succ = document.getElementById('successState');
+            const err = document.getElementById('errorState');
+            
+            box.classList.remove('hidden');
+            load.classList.add('hidden');
+            succ.classList.add('hidden');
+            err.classList.add('hidden');
+
+            if (state === 'loading') {
+                load.classList.remove('hidden');
+                load.classList.add('flex');
+            } else if (state === 'success') {
+                succ.classList.remove('hidden');
+                succ.classList.add('flex');
+            } else if (state === 'error') {
+                err.classList.remove('hidden');
+                err.classList.add('flex');
+                document.getElementById('errorText').innerText = errorMessage;
+            }
+        }
+
+        function closeStatus() {
+            document.getElementById('statusBox').classList.add('hidden');
+        }
+
+        // === TRANSMISIÓN EN VIVO + SINCRONIZACIÓN LOCAL Y CON GOOGLE DRIVE ===
+        function loadCachedPhotos() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('capsula_50_photos') || '[]');
+                if (Array.isArray(saved) && saved.length > 0) {
+                    updateGalleryDOM(saved);
+                }
+            } catch (e) {}
+        }
+
+        function addLocalPhotoToGallery(base64Url) {
+            const newItem = { id: 'local_' + new Date().getTime(), url: base64Url };
+            try {
+                const saved = JSON.parse(localStorage.getItem('capsula_50_photos') || '[]');
+                saved.unshift(newItem);
+                localStorage.setItem('capsula_50_photos', JSON.stringify(saved.slice(0, 12)));
+            } catch (e) {}
+            updateGalleryDOM([newItem]);
+        }
+
+        async function fetchGalleryImages(manual = false) {
+            const loadingEl = document.getElementById('gallery-loading');
+            const emptyEl = document.getElementById('gallery-empty');
+            const containerEl = document.getElementById('gallery-container');
+            const syncDot = document.getElementById('syncDot');
+
+            if (syncDot && manual) {
+                syncDot.classList.add('animate-ping');
+            }
+
+            if (containerEl.children.length === 0) {
+                loadingEl.classList.remove('hidden');
+                emptyEl.classList.add('hidden');
+            }
+
+            try {
+                const scriptUrl = getActiveScriptUrl();
+                const response = await fetch(`${scriptUrl}?action=getFiles&folderId=${DRIVE_FOLDER_ID}&t=${new Date().getTime()}`, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const result = await response.json();
+
+                loadingEl.classList.add('hidden');
+
+                let remoteFiles = [];
+                if (result) {
+                    if (Array.isArray(result.files)) remoteFiles = result.files;
+                    else if (Array.isArray(result.images)) remoteFiles = result.images;
+                    else if (Array.isArray(result.urls)) {
+                        remoteFiles = result.urls.map((u, idx) => typeof u === 'string' ? { id: 'url_' + idx, url: u } : u);
+                    }
+                }
+
+                if (remoteFiles.length > 0) {
+                    updateGalleryDOM(remoteFiles);
+                    emptyEl.classList.add('hidden');
+                } else if (containerEl.children.length === 0) {
+                    emptyEl.classList.remove('hidden');
+                    emptyEl.classList.add('flex');
+                }
+            } catch (error) {
+                loadingEl.classList.add('hidden');
+                if (containerEl.children.length === 0) {
+                    emptyEl.classList.remove('hidden');
+                    emptyEl.classList.add('flex');
+                }
+            } finally {
+                if (syncDot) {
+                    setTimeout(() => syncDot.classList.remove('animate-ping'), 800);
+                }
+            }
+        }
+
+        function updateGalleryDOM(files) {
+            const container = document.getElementById('gallery-container');
+            const emptyEl = document.getElementById('gallery-empty');
+            const loadingEl = document.getElementById('gallery-loading');
+
+            loadingEl.classList.add('hidden');
+            emptyEl.classList.add('hidden');
+            
+            files.forEach(file => {
+                const fileId = file.id || file.url;
+                if (fileId && !lastKnownFileIds.has(fileId)) {
+                    lastKnownFileIds.add(fileId);
+                    liveItemsList.unshift(file);
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'gallery-item bg-white p-2 border border-stone-200/80';
+                    
+                    const img = document.createElement('img');
+                    img.src = file.url;
+                    img.loading = "lazy";
+                    img.referrerPolicy = "no-referrer";
+                    img.alt = "Momento del evento";
+                    img.className = "rounded-lg";
+
+                    img.onerror = function() {
+                        if (!this.dataset.fallback && file.id && !String(file.id).startsWith('local_')) {
+                            this.dataset.fallback = 'true';
+                            this.src = 'https://lh3.googleusercontent.com/d/' + file.id + '=w1000';
+                        }
+                    };
+                    
+                    itemDiv.appendChild(img);
+                    container.insertBefore(itemDiv, container.firstChild);
+                }
+            });
+
+            updateLiveStage();
+        }
+
+        function updateLiveStage() {
+            const stage = document.getElementById('live-stage');
+            const stageImg = document.getElementById('live-stage-img');
+            if (liveItemsList.length > 0) {
+                stage.classList.remove('hidden');
+                stage.classList.add('flex');
+                if (currentSlideIndex >= liveItemsList.length) currentSlideIndex = 0;
+                stageImg.src = liveItemsList[currentSlideIndex].url;
+            }
+        }
+
+        function nextSlide() {
+            if (liveItemsList.length === 0) return;
+            currentSlideIndex = (currentSlideIndex + 1) % liveItemsList.length;
+            updateLiveStage();
+        }
+
+        function initGallery() {
+            loadCachedPhotos();
+            fetchGalleryImages();
+            if (galleryInterval) clearInterval(galleryInterval);
+            galleryInterval = setInterval(fetchGalleryImages, 15000);
+
+            if (slideshowInterval) clearInterval(slideshowInterval);
+            slideshowInterval = setInterval(nextSlide, 5000);
+        }
+    </script>
+</body>
+</html>
